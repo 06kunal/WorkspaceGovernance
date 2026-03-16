@@ -1,11 +1,23 @@
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
 from rest_framework import serializers
 
-from company_app.models import WorkSpaceUser
+# for generating token for email
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
+from django.contrib.auth import get_user_model
+from django.core.mail import send_mail
+from django.conf import settings
+
+User = get_user_model()
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
-    role = serializers.ChoiceField(choices=["EMP", "MNG", "HOD"])
+    
+    role = serializers.ChoiceField(choices=["EMP", "OWN"])
     
     class Meta:
         model = User
@@ -14,24 +26,56 @@ class UserCreateSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
 
-        role = validated_data.pop("role")
 
         user = User.objects.create(
             username=validated_data["username"],
             email=validated_data["email"],
+            role = validated_data["role"],
             is_active=False
         )
+        
+        
+        # generate token
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
 
-        WorkSpaceUser.objects.create(
-            user=user,
-            role=role,
-            workspace=self.context["workspace"]
+        invite_link = f"http://localhost:8000/set-password/{uid}/{token}/"
+
+        send_mail(
+            subject="Workspace Invitation",
+            message=f"You have been invited. Set your password here:\n{invite_link}",
+            from_email=settings.EMAIL_HOST_USER,
+            recipient_list=[user.email],
         )
+        
 
         return user
 
 
 
+
+
+class SetPasswordSerializer(serializers.Serializer):
+
+    password1 = serializers.CharField(write_only=True, min_length=8)
+    password2 = serializers.CharField(write_only=True, min_length=8)
+
+    def validate(self, data):
+
+        if data["password1"] != data["password2"]:
+            raise serializers.ValidationError("Passwords do not match")
+
+        return data
+
+    def save(self, user):
+
+        password = self.validated_data["password1"]
+
+        user.set_password(password)
+        user.is_active = True
+        user.save()
+
+        return user
 
 
 

@@ -1,9 +1,11 @@
 from django.contrib import admin
 
-from company_app.models import WorkSpace, WorkSpaceUser, Project, Task
+from company_app.models import WorkSpace, WorkSpaceUser, Project, Task, CustomUser, ProjectUser
 # Register your models here.
 admin.site.register(WorkSpace)
 admin.site.register(WorkSpaceUser)
 admin.site.register(Project)
 admin.site.register(Task)
+admin.site.register(CustomUser)
+admin.site.register(ProjectUser)
 
