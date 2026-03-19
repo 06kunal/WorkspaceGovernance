@@ -1,19 +1,88 @@
 from rest_framework import generics
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import ValidationError
 
-from company_app.models import WorkSpace, WorkSpaceUser, Project, Task
-from company_app.api.serializers import WorkSpaceSerializer, ProjectSerializer, TaskSerializer
+from company_app.models import WorkSpace, WorkSpaceUser, Project, Task, ProjectUser
+from company_app.api.serializers import WorkSpaceSerializer, WorkSpaceUserSerializer, ProjectSerializer, TaskSerializer, ProjectUserSerializer
+from company_app.api.permissions import WorkSpaceUserPermission, WorkSpaceUserDetailPermission, ProjectUserPermission
+
+
+
+
+class WorkSpaceUserList(generics.ListCreateAPIView):
+    
+    serializer_class = WorkSpaceUserSerializer
+    permission_classes = [IsAuthenticated, WorkSpaceUserPermission] 
+    
+    def get_queryset(self):
+        workspace_id = self.kwargs.get("workspace_pk")
+        return WorkSpaceUser.objects.filter(workspace_id = workspace_id).select_related("user")
+    
+    
+    def perform_create(self, serializer):
+        workspace_id = self.kwargs.get("workspace_pk")
+        workspace = generics.get_object_or_404(WorkSpace, id=workspace_id)
+        
+        user = serializer.validated_data.get("user")
+
+        if WorkSpaceUser.objects.filter(
+            workspace=workspace,
+            user=user
+            ).exists():
+                raise ValidationError("User already exists in workspace")
+        
+        serializer.save(workspace = workspace)
+        
+
+class WorkSpaceUserDetail(generics.RetrieveUpdateDestroyAPIView):
+    
+    
+    serializer_class = WorkSpaceUserSerializer
+    permission_classes = [IsAuthenticated, WorkSpaceUserDetailPermission]
+    
+    def get_queryset(self):
+        workspace_id = self.kwargs.get("workspace_pk")       
+        return WorkSpaceUser.objects.filter(workspace_id = workspace_id)
 
 
 class WorkSpaceList(generics.ListCreateAPIView):
     queryset = WorkSpace.objects.all()
     serializer_class = WorkSpaceSerializer
+    permission_classes = [IsAuthenticated]
 
 
 class WorkSpaceDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = WorkSpace.objects.all()
     serializer_class = WorkSpaceSerializer
 
-#ListCreateAPIView: only get and post. Therefore better for a list and adding.
+
+
+
+class ProjectUserList(generics.ListCreateAPIView):
+    serializer_class = ProjectUserSerializer
+    permission_classes = [IsAuthenticated, ProjectUserPermission]
+    
+    def get_queryset(self):
+        project_id = self.kwargs.get("project_pk")
+        
+        return ProjectUser.objects.filter(project_id = project_id).select_related("user")
+    
+
+    def perform_create(self, serializer):
+        project_id = self.kwargs.get("project_pk")
+        project = generics.get_object_or_404(Project, id=project_id)
+        
+        serializer.save(project = project)
+        
+        
+
+class ProjectUserDetail(generics.RetrieveUpdateDestroyAPIView):
+    queryset = ProjectUser.objects.all()
+    serializer_class = ProjectUserSerializer
+    permission_classes = [IsAuthenticated]
+
+
+#ListCreateAPIView: only get and post. Therefore better for a listing and adding.
 class ProjectList(generics.ListCreateAPIView):
     serializer_class = ProjectSerializer
 

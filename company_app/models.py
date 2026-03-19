@@ -6,13 +6,6 @@ from django.conf import settings
 
 # Create your models here.
     
-role_choices = [
-        ('EMP', 'Employee'),
-        ('MNG', 'Manager'),
-        ('HOD', 'Head of the department'),
-    ]
-
-    
     
 class CustomUser(AbstractUser):
     
@@ -41,6 +34,13 @@ class WorkSpace(models.Model):
 
 class WorkSpaceUser(models.Model):
     
+    role_choices = [
+        ('EMP', 'Employee'),
+        ('MNG', 'Manager'),
+        ('HOD', 'Head of the department'),
+    ]
+
+    
     workspace = models.ForeignKey(WorkSpace, on_delete=models.CASCADE, related_name="members")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="workspaceuser")
     role = models.CharField(max_length=3, choices=role_choices, default= 'EMP')
@@ -64,15 +64,21 @@ class Project(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     
     
-    
     def __str__(self):
         return f"{self.project_name} | {self.project_of_workspace}"
 
     
-class ProjectUser(models.Model):
+class ProjectUser(models.Model):   
+    functional_role_choices = [
+        ('DEV', 'Developer'),
+        ('QA', 'Qualtiy Analyst'),
+        ('TL', 'Team Lead'),
+        ('TST', 'Tester'),
+    ]
+    
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="members")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="projectuser")
-    role = models.CharField(max_length=10, choices=role_choices, default='EMP')
+    role = models.CharField(max_length=10, choices=functional_role_choices, default='EMP')
     
     
     class Meta:

@@ -39,11 +39,11 @@ class UserCreateSerializer(serializers.ModelSerializer):
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         token = default_token_generator.make_token(user)
 
-        invite_link = f"http://localhost:8000/set-password/{uid}/{token}/"
+        invite_link = f"http://localhost:8000/auth/set-password/{uid}/{token}/"
 
         send_mail(
             subject="Workspace Invitation",
-            message=f"You have been invited. Set your password here:\n{invite_link}",
+            message=f"You have been invited.\nSet your password here:\n{invite_link}",
             from_email=settings.EMAIL_HOST_USER,
             recipient_list=[user.email],
         )

@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from django.utils import timezone
 
-from company_app.models import WorkSpace, WorkSpaceUser, Project, Task
+from company_app.models import WorkSpace, WorkSpaceUser, Project, Task, ProjectUser
               
         
 class TaskSerializer(serializers.ModelSerializer):
@@ -70,8 +70,36 @@ class ProjectSerializer(serializers.ModelSerializer):
             "project_of_workspace": {"write_only": True, "required": False},
         }
 
+
+class ProjectUserSerializer(serializers.ModelSerializer):
+    project = serializers.CharField(source="project.project_name", read_only = True)
+    username = serializers.CharField(source = "user.username", read_only = True)
+    
+    class Meta:
+        model = ProjectUser
+        fields = "__all__"
+        extra_kwargs = {
+            "user": {"write_only": True}
+        }
+
+
+
 class WorkSpaceSerializer(serializers.ModelSerializer):
     projects = ProjectSerializer(many=True, read_only=True)
     class Meta:
         model = WorkSpace
         fields = "__all__"
+        
+         
+
+class WorkSpaceUserSerializer(serializers.ModelSerializer):
+    workspace = serializers.CharField(source='workspace.name', read_only=True)
+    username = serializers.CharField(source='user.username', read_only=True)
+    
+    
+    class Meta:
+        model = WorkSpaceUser
+        fields = "__all__"
+        extra_kwargs = {
+            "user": {"write_only": True}
+        }
