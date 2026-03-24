@@ -85,11 +85,37 @@ class ProjectUserSerializer(serializers.ModelSerializer):
 
 
 class WorkSpaceSerializer(serializers.ModelSerializer):
-    projects = ProjectSerializer(many=True, read_only=True)
+    projects = serializers.SerializerMethodField()
+    
     class Meta:
         model = WorkSpace
         fields = "__all__"
         
+    def get_projects(self, obj):
+        
+        user = self.context["request"].user
+        
+        ws_user = WorkSpaceUser.objects.filter(
+            workspace = obj,
+            user = user
+        ).only("role").first()
+        
+        current_role = ws_user.role if ws_user else None
+        
+        
+        
+        #Owner, superuser and the hod should see all the projects
+        if getattr(user, "role", None) == "OWN" or user.is_superuser or current_role == "HOD":
+            return ProjectSerializer(obj.projects.all(), many=True, read_only = True).data
+        
+        # MNG / EMP → only their projects
+        return ProjectSerializer(
+            obj.projects.filter(
+                members__user=user
+            ).distinct(),
+            many=True,
+            read_only = True
+        ).data        
          
 
 class WorkSpaceUserSerializer(serializers.ModelSerializer):
