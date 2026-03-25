@@ -4,7 +4,7 @@ from rest_framework.exceptions import ValidationError
 
 from company_app.models import WorkSpace, WorkSpaceUser, Project, Task, ProjectUser
 from company_app.api.serializers import WorkSpaceSerializer, WorkSpaceUserSerializer, ProjectSerializer, TaskSerializer, ProjectUserSerializer
-from company_app.api.permissions import WorkSpaceUserPermission, WorkSpaceUserDetailPermission, ProjectUserPermission, ProjectUserDetailPermission, WorkSpacePermission, WorkSpaceDetailPermission, ProjectListPermission, ProjectDetailPermission
+from company_app.api.permissions import WorkSpaceUserPermission, WorkSpaceUserDetailPermission, ProjectUserPermission, ProjectUserDetailPermission, WorkSpacePermission, WorkSpaceDetailPermission, ProjectListPermission, ProjectDetailPermission, TaskListPermission, TaskDetailPermission
 
 
 
@@ -16,7 +16,8 @@ class WorkSpaceUserList(generics.ListCreateAPIView):
     
     def get_queryset(self):
         workspace_id = self.kwargs.get("workspace_pk")
-        return WorkSpaceUser.objects.filter(workspace_id = workspace_id).select_related("user")
+        workspace = generics.get_object_or_404(WorkSpace, id = workspace_id)
+        return WorkSpaceUser.objects.filter(workspace_id = workspace_id)
     
     
     def perform_create(self, serializer):
@@ -110,6 +111,7 @@ class ProjectDetail(generics.RetrieveUpdateDestroyAPIView):
 
 class TaskList(generics.ListCreateAPIView):
     serializer_class = TaskSerializer
+    permission_classes = [TaskListPermission]
 
     def get_queryset(self):
         workspace_pk = self.kwargs.get('workspace_pk')
@@ -132,6 +134,7 @@ class TaskList(generics.ListCreateAPIView):
 
 class TaskDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = TaskSerializer
+    permission_classes = [TaskDetailPermission]
 
     def get_queryset(self):
         workspace_pk = self.kwargs.get('workspace_pk')

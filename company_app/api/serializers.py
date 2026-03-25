@@ -42,7 +42,6 @@ class TaskSerializer(serializers.ModelSerializer):
         }
         
     def update(self, instance, validated_data):
-        print(validated_data)
         new_status = validated_data.get("status", instance.status)
 
         # Case 1: task becomes resolved

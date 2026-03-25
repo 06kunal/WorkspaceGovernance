@@ -1,33 +1,47 @@
+from rest_framework.exceptions import NotFound,  PermissionDenied
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 from company_app.models import WorkSpaceUser, ProjectUser, WorkSpace, Project
 
 
 
 #Helper functions
-def get_workspace_role(user, workspace):
-    ws_user = WorkSpaceUser.objects.filter(
-        workspace = workspace,
-        user = user
-    ).only("role").first()
-    
-    return ws_user.role if ws_user else None
 
+def get_workspace_role(user, workspace_id):
+    workspace = WorkSpace.objects.filter(id = workspace_id).first()    
+    if not workspace:
+        raise NotFound(f"Workspce with id {workspace_id} does not exist.")
+        
+    ws_user = WorkSpaceUser.objects.filter(workspace = workspace, user = user).first()    
+    if not ws_user:
+        raise PermissionDenied("User is not part of this workspace.")
+    
+    return ws_user.role
+
+def is_workspace_user(user, workspace):    
+    ws_user = WorkSpaceUser.objects.filter(workspace = workspace, user = user).exists()
+    if not ws_user:
+        raise PermissionDenied("User is not part of this workspace.")
+    return ws_user
+    
 
 def is_admin(user):
     return getattr(user, "role", None) == "OWN" or user.is_superuser
     
-
-def is_workspace_user(user, workspace):
-    return WorkSpaceUser.objects.filter(
-        workspace = workspace,
-        user = user
-    ).exists()
     
-def is_project_user(user, project):
-    return ProjectUser.objects.filter(
+def is_project_user(user, project_id):
+    project = Project.objects.filter(id = project_id).first()
+    if not project:
+        raise NotFound(f"Project with id {project_id} does not exist.")
+    
+    pj_user = ProjectUser.objects.filter(
         project = project,
         user = user
     ).exists()
+    
+    if not pj_user:
+        raise PermissionDenied("User is not part of this project.")
+    
+    return pj_user
 
 
 # Permission class for get and post workspaceuserlist.
@@ -35,21 +49,14 @@ class WorkSpaceUserPermission(BasePermission):
 
     def has_permission(self, request, view):
         user = request.user
-        workspace_id = view.kwargs.get("workspace_pk")
-        workspace = WorkSpace.objects.filter(id=workspace_id).first()
-        if not workspace:
-            return False
-
+        
         # SUPERUSER amd owner→ full access
         if is_admin(user):
             return True
-
+        
         # Get workspace role
-        current_role = get_workspace_role(user, workspace)
-
-        if not current_role:
-            return False
-
+        workspace_id = view.kwargs.get("workspace_pk") 
+        current_role = get_workspace_role(user, workspace_id)
 
         # GET (LIST) restriction
         if request.method == "GET":
@@ -85,12 +92,9 @@ class WorkSpaceUserDetailPermission(BasePermission):
         if is_admin(user):
             return True
 
-        workspace = obj.workspace
-        
-        if not is_workspace_user(user, workspace):
-            return False
-        
-        current_role = get_workspace_role(user, workspace)
+        # Get workspace role
+        workspace_id = view.kwargs.get("workspace_pk") 
+        current_role = get_workspace_role(user, workspace_id)
 
 
         # SAFE METHODS (GET, HEAD, OPTIONS)
@@ -152,30 +156,18 @@ class ProjectUserPermission(BasePermission):
         if is_admin(user):
             return True
         
-        workspace_id = view.kwargs.get("workspace_pk")
-        workspace = WorkSpace.objects.filter(id=workspace_id).first()
-        if not workspace:
-            return False
-        
+        workspace_id = view.kwargs.get("workspace_pk")        
         project_id = view.kwargs.get("project_pk")
-        project = Project.objects.filter(id=project_id).first()
-        if not project:
-            return False
         
-        # Ensuring project belongs to a workspace
-        if project.project_of_workspace_id != workspace.id:
-            return False
-
         # get role
-        current_role = get_workspace_role(user, workspace)
-        if not current_role:
-            return False
+        current_role = get_workspace_role(user, workspace_id)
+
         
         # HOD→ full access
         if current_role == "HOD":
             return True
         
-        is_proj_user = is_project_user(user, project)
+        is_proj_user = is_project_user(user, project_id)
         
         if request.method in ["GET", "HEAD", "OPTIONS"]:
             
@@ -187,10 +179,6 @@ class ProjectUserPermission(BasePermission):
         if request.method == "POST":
             
             if current_role == "MNG":
-                
-                if not is_proj_user:
-                    return False
-                
                 role_to_assign = request.data.get("role")
 
                 return role_to_assign in ["DEV", "QA", "TST"]
@@ -206,13 +194,16 @@ class ProjectUserDetailPermission(BasePermission):
 
     def has_object_permission(self, request, view, obj):
         user = request.user
+        
+        if is_admin(user):
+            return True 
 
         # Get workspace role
-        workspace = obj.project.project_of_workspace        
-        current_role = get_workspace_role(user, workspace)
+        workspace_id = view.kwargs.get("workspace_pk")         
+        current_role = get_workspace_role(user, workspace_id)
         
-        # SUPERUSER and HOD → full access
-        if is_admin(user) or current_role == "HOD":
+        # HOD → full access
+        if current_role == "HOD":
             return True
 
 
@@ -220,7 +211,7 @@ class ProjectUserDetailPermission(BasePermission):
         if request.method in ["GET", "HEAD", "OPTIONS"]:
             
             if current_role in ["MNG", "EMP"]:
-                return is_project_user(user, obj.project)
+                return is_project_user(user, view.kwargs.get("project_pk"))
         
             return False
 
@@ -240,12 +231,8 @@ class ProjectListPermission(BasePermission):
         if is_admin(user):
             return True
         
-        workspace_id = view.kwargs.get("pk")
-        workspace = WorkSpace.objects.get(id= workspace_id)
-        if not workspace:
-            return False
-        
-        current_role = get_workspace_role(user, workspace)
+        workspace_id = view.kwargs.get("pk")        
+        current_role = get_workspace_role(user, workspace_id)
         
         return current_role == "HOD"
     
@@ -258,23 +245,23 @@ class ProjectListPermission(BasePermission):
 class ProjectDetailPermission(BasePermission):
     
     def has_object_permission(self, request, view, obj):
-        user = request.user        
+        user = request.user   
         
-        workspace = obj.project_of_workspace
-        if not workspace:
-            return False
+        if is_admin(user):
+            return True     
         
-        current_role = get_workspace_role(user, workspace)
+        workspace_id = obj.project_of_workspace.id    
+        current_role = get_workspace_role(user, workspace_id)
         
-        # Admin and HOD the allow everything
-        if is_admin(user) or current_role == "HOD":
+        # HOD the allow everything
+        if current_role == "HOD":
             return True
         
         if request.method in SAFE_METHODS:
             
             if current_role in ["EMP", "MNG"]:
-                return is_project_user(user, obj)
-            
+                return is_project_user(user, view.kwargs.get("pk"))
+                        
             return False
         
         return False
@@ -282,6 +269,74 @@ class ProjectDetailPermission(BasePermission):
             
             
     
+#Permission class for TaskList view. 
+# everybody can create a task except the emp.
+# everyone can view the task.
+class TaskListPermission(BasePermission):
+    
+    def has_permission(self, request, view):
+        user = request.user
+        
+        if is_admin(user):
+            return True
+        
+        workspace_id = view.kwargs.get("workspace_pk")
+        current_role = get_workspace_role(user, workspace_id)
+        
+        if current_role == "HOD":
+            return True
+        
+        project_id = view.kwargs.get("project_pk")
+        is_proj_user = is_project_user(user, project_id)
+        
+        if current_role == "MNG":
+            return is_proj_user
+        
+        if request.method in SAFE_METHODS:
+            return is_proj_user
+        
+        return False
+    
+    
+
+# Permission class for TaskDetail view.
+# everyone can access the detail, but the emp could only send the patch request and that too only for the status part and that too only that emp who has the task assigned.
+class TaskDetailPermission(BasePermission):
+    
+    def has_object_permission(self, request, view, obj):
+        user = request.user 
+        
+        if is_admin(user):
+            return True
+        
+        workspace_id = obj.task_of_workspace.id
+        current_role = get_workspace_role(user, workspace_id)
+        
+        if current_role == "HOD":
+            return True
+        
+        project_id = obj.task_of_project.id
+        is_proj_user = is_project_user(user, project_id)
+        
+        if current_role == "MNG":
+            return is_proj_user
+        
+        if request.method in SAFE_METHODS:
+            return is_proj_user
+        
+        if current_role == "EMP":
+            if request.method == "PATCH" and user == obj.assigned_to:
+                incoming_fields = set(request.data.keys())               
+                return incoming_fields == {"status"}
+            return False
+            
+        return False
+            
+            
+                
+        
+          
+        
        
         
         
