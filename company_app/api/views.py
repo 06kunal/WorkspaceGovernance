@@ -123,9 +123,11 @@ class TaskList(generics.ListCreateAPIView):
         workspace_pk = self.kwargs.get('workspace_pk')
         project_pk = self.kwargs.get('project_pk')
         
+        assinged_by_user = self.request.user
+        
         workspace = generics.get_object_or_404(WorkSpace, pk=workspace_pk)
         project = generics.get_object_or_404(Project, pk=project_pk)
-        serializer.save(task_of_workspace=workspace, task_of_project=project)
+        serializer.save(task_of_workspace=workspace, task_of_project=project, assigned_by = assinged_by_user)
         
 
 class TaskDetail(generics.RetrieveUpdateDestroyAPIView):

@@ -148,6 +148,10 @@ class ProjectUserPermission(BasePermission):
         
         user = request.user
         
+        #Ower-> full access
+        if is_admin(user):
+            return True
+        
         workspace_id = view.kwargs.get("workspace_pk")
         workspace = WorkSpace.objects.filter(id=workspace_id).first()
         if not workspace:
@@ -167,8 +171,8 @@ class ProjectUserPermission(BasePermission):
         if not current_role:
             return False
         
-        # SUPERUSER amd owner→ full access
-        if is_admin(user) or current_role == "HOD":
+        # HOD→ full access
+        if current_role == "HOD":
             return True
         
         is_proj_user = is_project_user(user, project)

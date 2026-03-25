@@ -9,6 +9,8 @@ class TaskSerializer(serializers.ModelSerializer):
     # return the name of the related workspace in responses
     workspace_name = serializers.CharField(source='task_of_workspace.name', read_only=True)
     project_name = serializers.CharField(source='task_of_project.name', read_only=True)
+    assigned_to_user = serializers.CharField(source="assigned_to.username", read_only = True)
+    assigned_by_user = serializers.CharField(source = "assigned_by.username", read_only = True)
 
     class Meta:
         model = Task
@@ -20,6 +22,10 @@ class TaskSerializer(serializers.ModelSerializer):
             "task_of_project",
             "workspace_name",
             "project_name",
+            "assigned_by",
+            "assigned_by_user",
+            "assigned_to",
+            "assigned_to_user",
             "status",
             "priority",
             "active",
@@ -31,6 +37,8 @@ class TaskSerializer(serializers.ModelSerializer):
             # it in the request body
             "task_of_workspace": {"write_only": True, "required": False},
             "task_of_project": {"write_only": True, "required": False},
+            "assigned_to": {"write_only": True, "required": False},
+            "assigned_by": {"write_only": True, "required": False},
         }
         
     def update(self, instance, validated_data):
