@@ -101,12 +101,12 @@ The system implements multi-level roles:
 
 ```
 company_app/
-│── models/
-│   ├── workspace.py
-│   ├── project.py
-│   ├── task.py
-│   ├── workspace_user.py
-│   ├── project_user.py
+│── models.py/
+│   ├── workspace
+│   ├── project
+│   ├── task
+│   ├── workspace_user
+│   ├── project_user
 │
 │── api/
 │   ├── views/
